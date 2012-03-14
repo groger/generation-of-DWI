@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<executable>
+	<title>Generation of DWI</title>
+	<description>Software phantom that is human brain like for evaluating tractography algorithms</description>
+	<contributor>Gwendoline Roger, Martin Styner, Yundi Shi, Clement Vachet</contributor>
+	<parameters>
+		<label>Generation of DWI program: Input/Output</label>
+		<description>steps of the generation</description>
+		<image>
+			<name>dwiImgFilename</name>
+			<flag>-i</flag>
+			<longflag>originalDWI</longflag>
+			<label>original DWI</label>
+			<channel>input</channel>
+			<description>Original DWI</description>
+		</image>
+		<image>
+			<name>T2ImgFilename</name>
+			<flag>-b</flag>
+			<longflag>baseline</longflag>
+			<label>baseline</label>
+			<channel>input</channel>
+		</image>
+		<image>
+			<name>OutFilename</name>
+			<flag>-o</flag>
+			<longflag>DWIReconstructed</longflag>
+			<label>Output DWI</label>
+			<channel>output</channel>
+			<description>DWI reconstructed from fiber file </description>
+		</image>
+		<image>
+			<name>EigenFilename</name>
+			<flag>-e</flag>
+			<longflag>EigenFileName</longflag>
+			<label>Input Eigen Values</label>
+			<channel>input</channel>
+			<description>File containing eigenvalues used to estimate diffusion in restricted part, structure of the file:for each voxel three eigenvalues of fibers contained in this voxel</description>
+		</image>
+		<image>
+			<name>foImgFilename</name>
+			<flag>-f</flag>
+			<longflag>fiberorientation</longflag>
+			<label>Input fiber orientations</label>
+			<channel>input</channel>
+			<description>File containing fiber orientations in each voxel, structure of the txt file:for each voxel three coordinates of the vector representing fiber orientations contained in this voxel; exemple : x,y,z of the first fiber in voxel 1 then x, y, z of the second fiber in the same voxel 1 ...</description>
+		</image>
+		<image>
+			<name>EigenHinderedImgFilename</name>
+			<longflag>EigenHinderedFileName</longflag>
+			<label>Input Eigen Values and Eigen Vectors for hindered part</label>
+			<channel>input</channel>
+			<description>File containing eigenvalues and eigenvectors used to estimate diffusion in hindered part, structure of the txt file: an average of tensors in each voxel was done and then for each voxel three eigenvalues of this average contained in this voxel then coordinates of the three eigenvectors of this tensor average</description>
+		</image>	
+		
+	</parameters>
+	<parameters>
+		<label>Parameters New DWI</label>
+		<description>Parameters to reconstruct the new DWI</description>
+		<float>
+			<name>Timetoecho</name>
+			<flag>-T</flag>
+			<default>0.12</default>
+		</float>
+		<float>
+			<name>DiffTime</name>
+			<description>Give the diffusion time in [seconds]</description>
+			<longflag>diffusion_time</longflag>
+			<flag>-D</flag>
+			<default>0.032020</default>
+		</float>
+		<double>
+			<name>WidthPulseGradient</name>
+			<description>Give the diffusion gradient duration in [seconds]</description>
+			<longflag>diffusion_gradient_duration</longflag>
+			<flag>-w</flag>
+			<default>0.028520</default>
+		</double>
+		<double>
+			<name>MagnitudeG</name>
+			<label>strength_of_the_diffusion_weighting_gradient</label>
+			<description>Give the strength of the diffusion weighting gradient in [mT/T]</description>
+			<longflag>gradient_magnitude</longflag>
+			<flag>-g</flag>
+			<default>26.98</default>
+		</double>
+		<float>			
+			<name>fH</name>
+			<label>T2-weighted volume fraction of the hindered compartments</label>
+			<longflag>-fh</longflag>
+			<default>0.7</default>
+		</float>
+		<float>			
+			<name>fR</name>
+			<label>T2-weighted volume fraction of the restricted compartments</label>
+			<longflag>-fr</longflag>
+			<default>0.3</default>
+		</float>
+		<double>
+			<name>noiseSigma</name>
+			<label>noise sigma</label>
+			<description>Give a sigma if you want to add Rician Noise</description>
+			<longflag>noise_sigma</longflag>
+			<flag>-s</flag>
+			<default>0</default>
+		</double>
+	</parameters>
+
+</executable>
