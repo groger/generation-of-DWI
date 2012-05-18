@@ -23,4 +23,6 @@ GENERATECLP(src main.xml)
 add_executable(generationDWI  ${src})
 target_link_libraries(generationDWI ${ITK_LIBRARIES} vtkCommon ${VTK_LIBRARIES})
 
+#add_executable(testAffichage testAffichage.cpp)
+#target_link_libraries(testAffichage ${ITK_LIBRARIES} vtkCommon)
 
