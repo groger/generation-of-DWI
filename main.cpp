@@ -72,7 +72,7 @@ int readFOMeta(const char* foImgFileName, FOMeta* m);
 template <class ImagePointer>
 int getFOImageHandler(ImagePointer &foImage, const char* foImgFileName);
 template <class ImagePointer>
-int estimateHinderedDiffusion(ImagePointer &EigenHinderedImage,const char* EigenHinderedImgFileName, std::vector<itk::Vector<double, 2> > &HinderedD,itk::Vector<double, 3> FPD);
+int estimateHinderedDiffusion(ImagePointer &EigenHinderedImage,const char* EigenHinderedImgFileName, std::vector<itk::Vector<double, 2> > &HinderedD,itk::Vector<double, 3> bkdirection);
 int generationdwi(string dwiImgFilename,string T2ImgFilename,string OutFilename,string EigenFilename,string foImgFilename,string EigenHinderedImgFilename,float Timetoecho,float DiffTime,double WidthPulseGradient,double MagnitudeG,float fH,float fR,double noiseSigma);
 
 
@@ -105,7 +105,7 @@ std::string T2Name = T2ImgFilename;
 const char * EigenFileName=EigenFilename.c_str();
 const char *EigenHinderedImgFileName=EigenHinderedImgFilename.c_str();
 const char *foImgFileName=foImgFilename.c_str();	 
-typedef float      PixelType;
+typedef double      PixelType;
 
 
  //Read dwi original and store gradients:
@@ -254,17 +254,6 @@ imageReader->SetFileName(  T2Name );
   }
 itk::ImageRegionIterator<ImageType> img_it (img, img->GetLargestPossibleRegion());
 
-//write the baseline 
-typedef itk::Image< double, ImageDimension >  ScalarImageType;
-ScalarImageType::Pointer b0 = ScalarImageType::New();
-  b0->CopyInformation(img);
-  b0->SetRegions(b0->GetLargestPossibleRegion());
-  b0->Allocate();
-  b0->Update();
-  std::cout << b0 << std::endl;
-  itk::ImageRegionIterator<ScalarImageType> itB0(b0, b0->GetLargestPossibleRegion());
-
-
 
      //signal estimation for each gradient direction and walking through each voxel of the new dwi
      for( unsigned int d = 0; d < directions2.size(); d++ )//For each gradient direction
@@ -331,7 +320,7 @@ ScalarImageType::Pointer b0 = ScalarImageType::New();
 	//define iterator on the original dwi
 	typedef itk::ImageRegionIterator< VectorImageType > IteratorType;
 	IteratorType olddwi_it( olddwi, olddwi->GetLargestPossibleRegion().GetSize() );
-	olddwi_it.GoToBegin();
+	
 	
 	//Initialization of signals
 	RealType SignalHindered=0;
@@ -348,24 +337,22 @@ ScalarImageType::Pointer b0 = ScalarImageType::New();
 
 	//Write Baseline on gradient 0
 	if(bkdirection==bk0){//baseline
-		img_it.GoToBegin();
+		img_it.GoToBegin();olddwi_it.GoToBegin();
 		while(!img_it.IsAtEnd() && !olddwi_it.IsAtEnd()){
 		  
 			itk::VariableLengthVector<PixelType> val=olddwi_it.Get();
-			val[0]=img_it.Get();
+			int componentToInsert=d;
+			val[componentToInsert]=img_it.Get();
 			olddwi_it.Set(val);
 			++img_it;
 			++olddwi_it;
 		}
 	}
-
-
-
-
-	else{//write in all other gradient directions than 0
+	else
+        {//write in all other gradient directions than 0
 			
-		
-/*for each voxel*/while(!fo_it.IsAtEnd() && !Eigen_it.IsAtEnd() && !olddwi_it.IsAtEnd()){//we walk through the image containing fiber orientation vectors for each voxel, the image containing restricted diffusion coefficients and the image containing hindered diffusion, the original dwi and we store the signal in the dwi(nrrd file) 
+		img_it.GoToBegin();olddwi_it.GoToBegin();
+/*for each voxel*/while(!fo_it.IsAtEnd() && !Eigen_it.IsAtEnd() && !olddwi_it.IsAtEnd() && !img_it.IsAtEnd()){//we walk through the image containing fiber orientation vectors for each voxel, the image containing restricted diffusion coefficients and the image containing hindered diffusion, the original dwi and we store the signal in the dwi(nrrd file) 
 			
 			Index=fo_it.GetIndex();
 			foValue = fo_it.Get();
@@ -388,10 +375,10 @@ ScalarImageType::Pointer b0 = ScalarImageType::New();
 				//Projection of gradient direction on the vector representing fiber direction
 				double dotproduct_bk_FPD = bkdirection*FPD;//dot product of gradient direction and the vector representing fiber direction
 				//v is the vector of a point from a fiber in a voxel
-				estimateHinderedDiffusion(EigenHinderedImage,EigenHinderedImgFileName,HinderedD,FPD);
-				itk::Vector<double, 2> lambda = HinderedD[j];
-				lambdaPa=lambda[0];/*Hindered Diffusion parallel component*/
-				lambdaPe=lambda[1];/*Hindered Diffusion perpendicular component*/
+				//estimateHinderedDiffusion(EigenHinderedImage,EigenHinderedImgFileName,HinderedD,bkdirection);
+				//itk::Vector<double, 2> lambda = HinderedD[j];
+				lambdaPa=0.1;/*Hindered Diffusion parallel component*/
+				lambdaPe=0.1;/*Hindered Diffusion perpendicular component*/
 				// q parallel and perpendicular estimation //
 				double normd=bkdirection.GetNorm();//gradient direction's norm
 				double qpa = fabs(dotproduct_bk_FPD);//projection result
@@ -399,9 +386,9 @@ ScalarImageType::Pointer b0 = ScalarImageType::New();
 				
 				/*std::cout << "qpa: "<<qpa<<" qpe: "<<qpe<<"  "<<std::endl;*/
 				//Take restricted parameters from EigenFile
-				eigen[0] =EigenValue[i];
+				/*eigen[0] =EigenValue[i];
 				eigen[1] =EigenValue[i+1];
-				eigen[2] =EigenValue[i+2];
+				eigen[2] =EigenValue[i+2];*/
 
 				/*Estimation paralell component of restricted diffusion coefficient(DPa) and perpendicular component of restricted diffusion coefficient (DPe)*/
 				//DPa=eigen[0];
@@ -409,8 +396,8 @@ ScalarImageType::Pointer b0 = ScalarImageType::New();
 				DPe = 0.00001;
 				//DPe=((eigen[1]+eigen[2])/2);
 
-				/*prints for test*/
-				if(compt==0 ){
+				/*/*prints for test*/
+				/*if(compt==0 ){
 					std::cout << "DPa: "<<DPa<<" DPe:   "<<DPe<<"  "<<std::endl;
 					std::cout <<"Difftime : "<<DiffTime<<std::endl;
 					std::cout<<"Width pulse gradient : "<<WidthPulseGradient<<std::endl;
@@ -419,7 +406,7 @@ ScalarImageType::Pointer b0 = ScalarImageType::New();
 					std::cout << "lambdaPa "<<lambdaPa<< std::endl;
 					std::cout << "lambdaPe "<<lambdaPe<< std::endl;
 					}
-				
+				*/
 				
 
 
@@ -433,33 +420,35 @@ ScalarImageType::Pointer b0 = ScalarImageType::New();
 				SignalRestricted += SignalRestrictedPa * SignalRestrictedPe;
 				
 				/*Estimation of hindered signal*/
-				SignalHindered += vcl_exp(( -4 )* pow(pi,2) * (DiffTime - (WidthPulseGradient/3)) * ((pow(qpa,2)) * lambdaPa + (pow(qpe,2)) * lambdaPe));
+				SignalHindered =1 ;
+				//+= vcl_exp(( -4 )* pow(pi,2) * (DiffTime - (WidthPulseGradient/3)) * ((pow(qpa,2)) * lambdaPa + (pow(qpe,2)) * lambdaPe));
 	 
 				++compt;
 				}
-				
 				//Final estimation of signal for one voxel//
 				if (compt == 0){
-					signal = SignalHindered/compt;
+					signal = SignalHindered;
 				}
 				else{	
 					std::cout << "SignalR: "<< SignalRestricted<<std::endl;
 					std::cout << "there are "<< compt<< " fiber bundles in this voxel"<<std::endl;
 					std::cout << "SignalH: "<< SignalHindered<<std::endl;
 					/*fR is re-normalized based on how many of restricted diffusion components are presented*/
-					signal = (fH * SignalHindered + fR * SignalRestricted)/compt; 
+					signal = (fR * SignalRestricted)/compt; //temporially get rid of hindered component
 				}
 			 
 		        }
 			
 			else{
-				signal =0;
+				signal = 1;
 			}//empty voxel so signal = 0
 			//on remplit la composante numero "componentToInsert"(=numero du gradient) du vecteur contenu dans le pixel numero Index
 			int componentToInsert=d;
 			itk::VariableLengthVector<PixelType> val=olddwi_it.Get();
-			val[componentToInsert]=signal;
-
+			val[componentToInsert]=signal * img_it.Get();
+			/*if (signal < 0){
+				std::cout<<"signal is val[0]--"<<val[0]<<"end"<< val[componentToInsert]<<std::endl;
+			}*/
 			//////////////ADD RICIAN NOISE/////////////////////
 			/* RealType realNoise = 0.0;
 			 RealType imagNoise = 0.0;
@@ -485,6 +474,7 @@ ScalarImageType::Pointer b0 = ScalarImageType::New();
 			++olddwi_it;
 			++Eigen_it;
 			++j;
+			++img_it;
 			if(signal!= 0)
 			{ ++compteur;}
 			
@@ -712,7 +702,7 @@ int readFOMeta(const char* foImgFileName, FOMeta* m){
 }
 
 template <class ImagePointer>
-int estimateHinderedDiffusion(ImagePointer &EigenHinderedImage,const char* EigenHinderedImgFileName, std::vector<itk::Vector<double, 2> > &HinderedD,itk::Vector<double, 3> FPD){
+int estimateHinderedDiffusion(ImagePointer &EigenHinderedImage,const char* EigenHinderedImgFileName, std::vector<itk::Vector<double, 2> > &HinderedD,itk::Vector<double, 3> bkdirection){
 
 	HinderedD.clear();
 	const unsigned int EigenDimension = 3;
@@ -734,7 +724,7 @@ int estimateHinderedDiffusion(ImagePointer &EigenHinderedImage,const char* Eigen
 	while(!eigen_hindered_it.IsAtEnd()){/*walk through txt file containing eigenvalues and eigenvectors of average tensor*/
 		EigenValue=eigen_hindered_it.Get();
 		unsigned int count= EigenValue.size();
-		if(count>0 && FPD[0]!=0 && FPD[1]!=0 && FPD[2]!=0){
+		if(count>0 && bkdirection[0]!=0 && bkdirection[1]!=0 && bkdirection[2]!=0){
 			for(unsigned int i = 0; i < 3; i++){
 			  /*we take the eigenvectors and store it in v1, v2, v3*/
 			  v1[i]=EigenValue[i+3];
@@ -746,7 +736,7 @@ int estimateHinderedDiffusion(ImagePointer &EigenHinderedImage,const char* Eigen
 			/*we estimate hindered diffusion coefficient : the parallel one :temp[0] and the perpendicular one : temp[1]*/
 			//HINDERED DIFFUSION coefficient projected along the gradient directions
 			//
-			temp[0]=EigenValue[0]*(fabs(FPD*v1))+EigenValue[1]*(fabs(FPD*v2))+EigenValue[2]*(fabs(FPD*v3));
+			temp[0]=EigenValue[0]*(fabs(bkdirection*v1))+EigenValue[1]*(fabs(bkdirection*v2))+EigenValue[2]*(fabs(bkdirection*v3));
 			temp[1]=sqrt(((pow(EigenValue[0],2)+pow(EigenValue[1],2)+pow(EigenValue[2],2))-pow(temp[0],2))/2);
 		}
 		else{hinderedD[0]=0;hinderedD[1]=0;temp[0]=0;temp[1]=0;}
