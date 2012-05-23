@@ -1,5 +1,5 @@
 #include "mainCLP.h"
-//testing
+
 #include <itkMersenneTwisterRandomVariateGenerator.h>
 #include <itkImageIOBase.h>
 #include <itkVariableLengthVector.h>
@@ -359,7 +359,7 @@ itk::ImageRegionIterator<ImageType> img_it (img, img->GetLargestPossibleRegion()
 			count = foValue.size();
 			EigenValue=Eigen_it.Get();
 			int compt=0;
-
+			estimateHinderedDiffusion(EigenHinderedImage,EigenHinderedImgFileName,HinderedD,bkdirection);
 			if(count!=0){
 		       	for(unsigned int i = 0; i < count; i += 3){ /*for each RPD(=vector=fiber direction)*/
 				VectorType FPD; //fiber principal direction which is normalized RPD
@@ -375,7 +375,7 @@ itk::ImageRegionIterator<ImageType> img_it (img, img->GetLargestPossibleRegion()
 				//Projection of gradient direction on the vector representing fiber direction
 				double dotproduct_bk_FPD = bkdirection*FPD;//dot product of gradient direction and the vector representing fiber direction
 				//v is the vector of a point from a fiber in a voxel
-				//estimateHinderedDiffusion(EigenHinderedImage,EigenHinderedImgFileName,HinderedD,bkdirection);
+				
 				//itk::Vector<double, 2> lambda = HinderedD[j];
 				lambdaPa=0.1;/*Hindered Diffusion parallel component*/
 				lambdaPe=0.1;/*Hindered Diffusion perpendicular component*/
