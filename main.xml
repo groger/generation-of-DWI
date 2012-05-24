@@ -89,13 +89,13 @@
 			<name>fH</name>
 			<label>T2-weighted volume fraction of the hindered compartments</label>
 			<longflag>-fh</longflag>
-			<default>0.9</default>
+			<default>0.4</default>
 		</float>
 		<float>			
 			<name>fR</name>
 			<label>T2-weighted volume fraction of the restricted compartments</label>
 			<longflag>-fr</longflag>
-			<default>0.1</default>
+			<default>0.6</default>
 		</float>
 		<double>
 			<name>noiseSigma</name>
