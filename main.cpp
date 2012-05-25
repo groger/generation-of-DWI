@@ -74,7 +74,7 @@ int readFOMeta(const char* foImgFileName, FOMeta* m);
 template <class ImagePointer>
 		int getFOImageHandler(ImagePointer &foImage, const char* foImgFileName);
 
-double estimateHinderedDiffusion(std::vector< double > EigenValue, itk::Vector<double, 3> bkdirection,double WidthPulseGradient,double DiffTime);
+double estimateHinderedDiffusion(std::vector< double > EigenValue, itk::Vector<double, 3> ,double WidthPulseGradient,double DiffTime);
 
 int generationdwi(string dwiImgFilename,string T2ImgFilename,string OutFilename,string EigenFilename,string foImgFilename,string EigenHinderedImgFilename,double Timetoecho,double DiffTime,double WidthPulseGradient,double MagnitudeG,float fH,float fR,double noiseSigma);
 
@@ -325,50 +325,46 @@ int generationdwi(string dwiImgFilename,string T2ImgFilename,string OutFilename,
 			if (SignalHindered!=1){
 				std::cout<<"hindered diffusion is "<<SignalHindered<<" fiber count is "<<count<<" grad direction is "<<bkdirection[0]<<" "<<bkdirection[1]<<" "<<bkdirection[2]<<std::endl;
 			}
-			
-			if(count!=0 && bkdirection[0]!=0 && bkdirection[1]!=0 && bkdirection[2]!=0){
-				int fiber_count = 0;
-				SignalRestricted = 0;				
-				//go through all the fiber orientations
-				for(unsigned int i = 0; i < count; i += 3){ /*for each RPD(=vector=fiber direction)*/
-					VectorType RPD; //restricted principal direction
-					VectorType FPD; //fiber principal direction which is normalized 
-					if(count!=0){
-						RPD[0] = foValue[i];//we take the x component of current fiber orientation vector
-						RPD[1] = foValue[i+1];//we take the y component of current fiber orientation vector
-						RPD[2] = foValue[i+2];//we take the z component of current fiber orientation vector
-						double normPD =RPD.GetNorm();//fiber orientation's norm
-						FPD = RPD/normPD;
+			signal = SignalHindered; //1 for bkdirection = 0,0,0
+			if(count!=0){
+				if(bkdirection[0]!=0 || bkdirection[1]!=0 || bkdirection[2]!=0){
+					int fiber_count = 0;
+					SignalRestricted = 0;				
+					//go through all the fiber orientations
+					for(unsigned int i = 0; i < count; i += 3){ /*for each RPD(=vector=fiber direction)*/
+						VectorType RPD; //restricted principal direction
+						VectorType FPD; //fiber principal direction which is normalized 
+						if(count!=0){
+							RPD[0] = foValue[i];//we take the x component of current fiber orientation vector
+							RPD[1] = foValue[i+1];//we take the y component of current fiber orientation vector
+							RPD[2] = foValue[i+2];//we take the z component of current fiber orientation vector
+							double normPD =RPD.GetNorm();//fiber orientation's norm
+							FPD = RPD/normPD;
+						}
+						double normd=bkdirection.GetNorm();//gradient direction's norm
+						//Projection of gradient direction on the vector representing fiber direction
+						double dotproduct_bk_FPD = bkdirection*FPD;//dot product of gradient direction and the vector representing fiber 
+						double qpa = fabs(dotproduct_bk_FPD);//projection result
+						double qpe = sqrt((pow (normd,2))-(pow (qpa,2)));
+						/*Estimation paralell component of restricted diffusion coefficient(DPa) and perpendicular component of restricted diffusion coefficient (DPe)*/
+						
+	
+						/*estimation of the parallel restricted signal*/
+						SignalRestrictedPa = vcl_exp((-4) * pow(pi,2) * (pow(qpa,2)) * (DiffTime - (WidthPulseGradient/3)) * DPa);
+		
+						/*estimation of the perpendicular restricted signal*/
+						SignalRestrictedPe = vcl_exp(-(4 * pow(pi,2)*pow(Radius,4)*(pow(qpe,2))/DPe*t)*(7/96)*(2-(99/112)*(pow(Radius,2)/DPe*t)));
+		
+						/*estimation of the total restricted signal*/
+						SignalRestricted += SignalRestrictedPa * SignalRestrictedPe;
+						fiber_count++;	
 					}
-					double normd=bkdirection.GetNorm();//gradient direction's norm
-					//Projection of gradient direction on the vector representing fiber direction
-					double dotproduct_bk_FPD = bkdirection*FPD;//dot product of gradient direction and the vector representing fiber 
-					double qpa = fabs(dotproduct_bk_FPD);//projection result
-					double qpe = sqrt((pow (normd,2))-(pow (qpa,2)));
-					/*Estimation paralell component of restricted diffusion coefficient(DPa) and perpendicular component of restricted diffusion coefficient (DPe)*/
-					
-
-					/*estimation of the parallel restricted signal*/
-					SignalRestrictedPa = vcl_exp((-4) * pow(pi,2) * (pow(qpa,2)) * (DiffTime - (WidthPulseGradient/3)) * DPa);
-	
-					/*estimation of the perpendicular restricted signal*/
-					SignalRestrictedPe = vcl_exp(-(4 * pow(pi,2)*pow(Radius,4)*(pow(qpe,2))/DPe*t)*(7/96)*(2-(99/112)*(pow(Radius,2)/DPe*t)));
-	
-					/*estimation of the total restricted signal*/
-					SignalRestricted += SignalRestrictedPa * SignalRestrictedPe;
-					fiber_count++;	
 				}
-					
 				//Final estimation of signal for one voxel//
-				
 				/*fR is re-normalized based on how many of restricted diffusion components are presented*/
 				signal = (fR * SignalRestricted)/fiber_count+ fH*SignalHindered; //temporially get rid of hindered component
 				std::cout<<"restricted diffusion is "<<SignalRestricted<<std::endl;
 				std::cout<<"signal is "<<signal<<std::endl;
-			}
-			//there is no fiber in this voxel
-			else{
-				signal = SignalHindered; //1 for bkdirection = 0,0,0
 			}
 			
 			if (signal != signal){
@@ -619,7 +615,8 @@ int readFOMeta(const char* foImgFileName, FOMeta* m){
 double estimateHinderedDiffusion(std::vector< double > EigenValue, itk::Vector<double, 3> bkdirection,double WidthPulseGradient,double DiffTime)
 {
 	double pi=M_PI;
-	double HinderedSignal = 0; //initialize hindered signal
+	/*average tensor is zeros, attenuation is 1*/
+	double HinderedSignal = 1; //initialize hindered signal
 	
 	vnl_matrix<double> eigenVectormatrix(3,3);
 	vnl_matrix<double> eigenValuematrix(3,3);
@@ -636,26 +633,24 @@ double estimateHinderedDiffusion(std::vector< double > EigenValue, itk::Vector<d
 	unsigned int count= EigenValue.size();
 	//std::cout<<"Hindered EigenValue Size is "<<count<<std::endl;
 	//
-	if(count>0 && bkdirection[0]!=0 && bkdirection[1]!=0 && bkdirection[2]!=0){
-		for(unsigned int i = 0; i < 3; i++){
-			//EigenValue is stored as three eigenvalues first then eigenvectors following 12 component vector
-			eigenValuematrix(i,i) = EigenValue[i];
-			for(unsigned int j = 0; j < 3; j++){
-				eigenVectormatrix(i,j) = EigenValue[3*i+j+3];
-				eigenVectortransmatrix(j,i) = EigenValue[3*i+j+3];
+	if(count!=0){
+		if(bkdirection[0]!=0||bkdirection[1]!=0||bkdirection[2]!=0){
+			for(unsigned int i = 0; i < 3; i++){
+				//EigenValue is stored as three eigenvalues first then eigenvectors following 12 component vector
+				eigenValuematrix(i,i) = EigenValue[i];
+				for(unsigned int j = 0; j < 3; j++){
+					eigenVectormatrix(i,j) = EigenValue[3*i+j+3];
+					eigenVectortransmatrix(j,i) = EigenValue[3*i+j+3];
+				}
 			}
-		}
 		
-		vnl_matrix<double> tensor = eigenVectormatrix*eigenValuematrix*eigenVectortransmatrix;
-		//we estimate hindered diffusion signal as exp(-4pi^2*q'Dq)
-		vnl_vector<double> temp_qD = q;
-		temp_qD.post_multiply(tensor);
-		double temp_qDq = dot_product(temp_qD,q);
-		HinderedSignal = vcl_exp(( -4 )* pow(pi,2) * (DiffTime - (WidthPulseGradient/3)) * temp_qDq);
-	}
-	/*average tensor is zeros, attenuation is 1*/
-	else{
-		HinderedSignal = 1;
+			vnl_matrix<double> tensor = eigenVectormatrix*eigenValuematrix*eigenVectortransmatrix;
+			//we estimate hindered diffusion signal as exp(-4pi^2*q'Dq)
+			vnl_vector<double> temp_qD = q;
+			temp_qD.post_multiply(tensor);
+			double temp_qDq = dot_product(temp_qD,q);
+			HinderedSignal = vcl_exp(( -4 )* pow(pi,2) * (DiffTime - (WidthPulseGradient/3)) * temp_qDq);
+		}
 	}
 	return HinderedSignal;
 }
