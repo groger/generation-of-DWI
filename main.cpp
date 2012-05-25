@@ -93,7 +93,6 @@ int main(int argc, char *argv[])
 int generationdwi(string dwiImgFilename,string T2ImgFilename,string OutFilename,string EigenFilename,string foImgFilename,string EigenHinderedImgFilename,double Timetoecho,double DiffTime,double WidthPulseGradient,double MagnitudeG,float fH,float fR,double noiseSigma)
 {
 	//We define dwi parameters
-	typedef double RealType;
 	float Radius=0.008;
 	double gyroRad=267.5;
 	double gyro=42.576;
@@ -101,29 +100,29 @@ int generationdwi(string dwiImgFilename,string T2ImgFilename,string OutFilename,
 	double t=Timetoecho/2;
 	double DPa;
 	double DPe;
-	std::string Inputname = dwiImgFilename;
-	std::string T2Name = T2ImgFilename;
-	const char * EigenFileName=EigenFilename.c_str();
-	const char *EigenHinderedimgFileName=EigenHinderedImgFilename.c_str();
-	const char *foimgFileName=foImgFilename.c_str();	
+	//std::string Inputname = dwiImgFilename;
+	//std::string T2Name = T2ImgFilename;
+	//const char *EigenFileName=EigenFilename.c_str();
+	//const char *EigenHinderedimgFileName=EigenHinderedImgFilename.c_str();
+	//const char *foimgFileName=foImgFilename.c_str();	
 	
 	typedef double PixelType;
-	
-	
+	typedef double RealType;
+	typedef itk::Vector<double, 3> VectorType;
 	//Read dwi original and store gradients:
 		
 	typedef itk::Image< PixelType , 3 > ImageType ;
 	typedef itk::ImageFileReader< ImageType > FileReaderType ; 
 	typedef itk::VectorImage< PixelType , 3 > VectorImageType ; 
-	ImageType::Pointer image ;
-	std::vector< ImageType::Pointer > vectorOfImage ;
+	
+	//std::vector< ImageType::Pointer > vectorOfImage ;
 	itk::MetaDataDictionary dico ;
 	itk::VectorImage< PixelType, 3 >::Pointer dwi_template ;
 	dwi_template = itk::VectorImage< PixelType , 3 >::New() ; 
 	
 	itk::ImageFileReader< VectorImageType >::Pointer reader ;
 	reader = itk::ImageFileReader< VectorImageType >::New() ;
-	reader->SetFileName( Inputname) ;
+	reader->SetFileName(dwiImgFilename) ;
 	reader->Update() ;
 	dwi_template = reader->GetOutput();
 	//Save metadata dictionary
@@ -244,7 +243,7 @@ int generationdwi(string dwiImgFilename,string T2ImgFilename,string OutFilename,
 	typedef itk::ImageFileReader< ImageType  > ImageReaderType;
 	ImageReaderType::Pointer  imageReader = ImageReaderType::New();
 	ImageType::Pointer b0_img = ImageType::New();
-	imageReader->SetFileName(T2Name);
+	imageReader->SetFileName(T2ImgFilename);
 	try{
 		imageReader->Update();
 		b0_img = imageReader->GetOutput();
@@ -262,24 +261,22 @@ int generationdwi(string dwiImgFilename,string T2ImgFilename,string OutFilename,
 	typedef std::vector< double > FOPixelType;
 	typedef itk::Image< FOPixelType, FODimension > FOImageType;
 	typedef itk::ImageRegionConstIterator< FOImageType > FOConstIteratorType;
-	typedef itk::Vector<double, 3> VectorType;
+
 	FOImageType::Pointer foImage = FOImageType::New();
-	getFOImageHandler(foImage, foimgFileName); /*function to read txt file containing fiber orientation vectors*/
-	FOConstIteratorType fo_it( foImage, foImage->GetLargestPossibleRegion());
+	getFOImageHandler(foImage, foImgFilename.c_str()); /*function to read txt file containing fiber orientation vectors*/
+	FOConstIteratorType fo_it(foImage, foImage->GetLargestPossibleRegion());
 	FOImageType::PixelType foValue;
-	
-	//signal estimation for each gradient direction and walking through each voxel of the new dwi
-	
+	//signal estimation for each gradient direction and walking through each voxel of the new dwi	
 	itk::VariableLengthVector<PixelType> dwi_val = dwi_template_it.Get();
 	//for each voxel
 	//walking through every location on template_dwi and b0 image
 	/*file in which we will store hindered parameters*/
 	const unsigned int EigenHinderedDimension = 3;
-	typedef std::vector< double > EigenPixelType;
+	typedef std::vector< PixelType > EigenPixelType;
 	typedef itk::Image< EigenPixelType, EigenHinderedDimension > EigenImageType;
 	typedef itk::ImageRegionConstIterator< EigenImageType > EigenConstIteratorType;
 	EigenImageType::Pointer EigenHinderedImage = EigenImageType::New();
-	getFOImageHandler(EigenHinderedImage, EigenHinderedimgFileName); /*function to read txt file containing hindered diffusion coefficients*/	
+	getFOImageHandler(EigenHinderedImage, EigenHinderedImgFilename.c_str()); /*function to read txt file containing hindered diffusion coefficients*/	
 	EigenConstIteratorType eigen_hindered_it(EigenHinderedImage, EigenHinderedImage->GetLargestPossibleRegion());
 	EigenImageType::PixelType EigenValue;
 	
@@ -288,24 +285,16 @@ int generationdwi(string dwiImgFilename,string T2ImgFilename,string OutFilename,
 	dwi_template_it.GoToBegin();
 	fo_it.GoToBegin();
 	while(!dwi_template_it.IsAtEnd() && !b0_img_it.IsAtEnd() && !fo_it.IsAtEnd() && !eigen_hindered_it.IsAtEnd()){
-		std::cout<<"reading hindered diffusion of this voxel"<<std::endl;
+		//std::cout<<"reading hindered diffusion of this voxel"<<std::endl;
 		EigenValue=eigen_hindered_it.Get(); // a list that has 12 components of three eigenvalues and three eigenvectors
 		
-		std::cout << "Reading Fiber Orientations per Voxel Image"<< std::endl;
+		//std::cout << "Reading Fiber Orientations per Voxel Image"<< std::endl;
 		foValue = fo_it.Get();
 		unsigned int count = foValue.size(); //size of fiber orientation file
-		VectorType RPD; //restricted principal direction
-		VectorType FPD; //fiber principal direction which is normalized RPD
-		if(count!=0){
-			RPD[0] = foValue[i];//we take the x component of current fiber orientation vector
-			RPD[1] = foValue[i+1];//we take the y component of current fiber orientation vector
-			RPD[2] = foValue[i+2];//we take the z component of current fiber orientation vector
-			double normPD =RPD.GetNorm();//fiber orientation's norm
-			FPD = RPD/normPD;
-		}
+		//std::cout << "foValue.size is "<<count<<std::endl;
 					
 		/*we reset the signal to zero as we change of voxel*/	
-		RealType signal=0;
+		RealType signal = 0;
 		for( unsigned int grad_no = 0; grad_no < directions2.size(); grad_no++ )//For each gradient direction
 		{	
 			
@@ -324,35 +313,36 @@ int generationdwi(string dwiImgFilename,string T2ImgFilename,string OutFilename,
 			RealType SignalRestrictedPe =0;
 			RealType SignalRestricted=0;
 					
-			std::cout<<"new direction"<<std::endl;
+			//std::cout<<"new direction"<<std::endl;
 
 			//we walk through the image containing fiber orientation vectors for each voxel, 
 
-			DPa = 0.001;
+			DPa = 0.002;
 			DPe = 0.00001;
 			//there is fiber in this voxel
 			//in the case of no fiber or 0,0,0 grad direction, hindered diffusion is zero
 			SignalHindered = estimateHinderedDiffusion(EigenValue,bkdirection,WidthPulseGradient,DiffTime);
 			if (SignalHindered!=1){
-				std::cout<<"hindered diffusion is "<<SignalHindered<<std::endl;
+				std::cout<<"hindered diffusion is "<<SignalHindered<<" fiber count is "<<count<<" grad direction is "<<bkdirection[0]<<" "<<bkdirection[1]<<" "<<bkdirection[2]<<std::endl;
 			}
-			int fiber_count = 0;
+			
 			if(count!=0 && bkdirection[0]!=0 && bkdirection[1]!=0 && bkdirection[2]!=0){
-				SignalRestricted = 0;
+				int fiber_count = 0;
+				SignalRestricted = 0;				
 				//go through all the fiber orientations
 				for(unsigned int i = 0; i < count; i += 3){ /*for each RPD(=vector=fiber direction)*/
-					VectorType FPD; //fiber principal direction which is normalized RPD
-					RPD[0] = foValue[i];//we take the x component of current fiber orientation vector
-					RPD[1] = foValue[i+1];//we take the y component of current fiber orientation vector
-					RPD[2] = foValue[i+2];//we take the z component of current fiber orientation vector
-					double normPD =RPD.GetNorm();//fiber orientation's norm
-					FPD = RPD/normPD;
-									
-
+					VectorType RPD; //restricted principal direction
+					VectorType FPD; //fiber principal direction which is normalized 
+					if(count!=0){
+						RPD[0] = foValue[i];//we take the x component of current fiber orientation vector
+						RPD[1] = foValue[i+1];//we take the y component of current fiber orientation vector
+						RPD[2] = foValue[i+2];//we take the z component of current fiber orientation vector
+						double normPD =RPD.GetNorm();//fiber orientation's norm
+						FPD = RPD/normPD;
+					}
+					double normd=bkdirection.GetNorm();//gradient direction's norm
 					//Projection of gradient direction on the vector representing fiber direction
 					double dotproduct_bk_FPD = bkdirection*FPD;//dot product of gradient direction and the vector representing fiber 
-					// q parallel and perpendicular estimation //
-					double normd=bkdirection.GetNorm();//gradient direction's norm
 					double qpa = fabs(dotproduct_bk_FPD);//projection result
 					double qpe = sqrt((pow (normd,2))-(pow (qpa,2)));
 					/*Estimation paralell component of restricted diffusion coefficient(DPa) and perpendicular component of restricted diffusion coefficient (DPe)*/
@@ -373,23 +363,24 @@ int generationdwi(string dwiImgFilename,string T2ImgFilename,string OutFilename,
 				
 				/*fR is re-normalized based on how many of restricted diffusion components are presented*/
 				signal = (fR * SignalRestricted)/fiber_count+ fH*SignalHindered; //temporially get rid of hindered component
+				std::cout<<"restricted diffusion is "<<SignalRestricted<<std::endl;
+				std::cout<<"signal is "<<signal<<std::endl;
 			}
 			//there is no fiber in this voxel
 			else{
 				signal = SignalHindered; //1 for bkdirection = 0,0,0
 			}
 			
-		
+			if (signal != signal){
+				for (unsigned int i = 0; i < count; i ++){
+					std::cout<<"foValue is "<<foValue[i]<<std::endl;
+				}
+			}
 			dwi_val[grad_no]=signal * b0_img_it.Get();
 			
 			
 			//std::cout<<"signal is dwi_val[0]--"<<dwi_val[0]<<"--end--"<< dwi_val[grad_no]<<std::endl;
 			
-			
-			++fo_it;
-			++dwi_template_it;
-			++b0_img_it;
-			++eigen_hindered_it;
 			//////////////ADD RICIAN NOISE/////////////////////
 			/* RealType realNoise = 0.0;
 			RealType imagNoise = 0.0;
@@ -409,8 +400,12 @@ int generationdwi(string dwiImgFilename,string T2ImgFilename,string OutFilename,
 				
 				
 		}
+		dwi_template_it.Set(dwi_val);	
+		++fo_it;
+		++dwi_template_it;
+		++b0_img_it;
+		++eigen_hindered_it;
 	}
-	dwi_template_it.Set(dwi_val);	
 	/*we write the new dwi*/
 	typedef itk::ImageFileWriter<VectorImageType> WriterType;
 	WriterType::Pointer writer = WriterType::New();
@@ -623,41 +618,37 @@ int readFOMeta(const char* foImgFileName, FOMeta* m){
 
 double estimateHinderedDiffusion(std::vector< double > EigenValue, itk::Vector<double, 3> bkdirection,double WidthPulseGradient,double DiffTime)
 {
-	const unsigned int EigenDimension = 3;	
 	double pi=M_PI;
-	
+	double HinderedSignal = 0; //initialize hindered signal
 	
 	vnl_matrix<double> eigenVectormatrix(3,3);
 	vnl_matrix<double> eigenValuematrix(3,3);
 	vnl_matrix<double> eigenVectortransmatrix(3,3);
 	
-	vnl_vector<double> q(3);
-	q = bkdirection.GetVnlVector();
+	vnl_vector<double> q = bkdirection.GetVnlVector();
 
-	double HinderedSignal = 0; //initialize hindered signal
 	//initialize
 	fill(eigenVectormatrix.begin(), eigenVectormatrix.end(), 0.0);
 	fill(eigenValuematrix.begin(), eigenValuematrix.end(), 0.0);
 	fill(eigenVectortransmatrix.begin(), eigenVectortransmatrix.end(), 0.0);
 		 
-	//temporary solution is to compute the tensor based on the eigenvalue and eigenvactor
-	
+	//temporary solution is to compute the tensor based on the eigenvalue and eigenvactor	
 	unsigned int count= EigenValue.size();
-	
+	//std::cout<<"Hindered EigenValue Size is "<<count<<std::endl;
+	//
 	if(count>0 && bkdirection[0]!=0 && bkdirection[1]!=0 && bkdirection[2]!=0){
 		for(unsigned int i = 0; i < 3; i++){
-			/*we take the eigenvectors and store it in v1, v2, v3*/
+			//EigenValue is stored as three eigenvalues first then eigenvectors following 12 component vector
 			eigenValuematrix(i,i) = EigenValue[i];
-			std::cout<<"eigenvalue("<<i<<","<<i<<") is "<<eigenValuematrix(i,i)<<std::endl;
 			for(unsigned int j = 0; j < 3; j++){
 				eigenVectormatrix(i,j) = EigenValue[3*i+j+3];
 				eigenVectortransmatrix(j,i) = EigenValue[3*i+j+3];
 			}
 		}
-		vnl_matrix<double> tensor(3,3);
-		tensor = eigenVectormatrix*eigenValuematrix* eigenVectortransmatrix;
-		/*we estimate hindered diffusion signal*/
-		vnl_vector<double> temp_qD(3);
+		
+		vnl_matrix<double> tensor = eigenVectormatrix*eigenValuematrix*eigenVectortransmatrix;
+		//we estimate hindered diffusion signal as exp(-4pi^2*q'Dq)
+		vnl_vector<double> temp_qD = q;
 		temp_qD.post_multiply(tensor);
 		double temp_qDq = dot_product(temp_qD,q);
 		HinderedSignal = vcl_exp(( -4 )* pow(pi,2) * (DiffTime - (WidthPulseGradient/3)) * temp_qDq);
