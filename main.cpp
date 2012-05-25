@@ -359,12 +359,12 @@ int generationdwi(string dwiImgFilename,string T2ImgFilename,string OutFilename,
 						SignalRestricted += SignalRestrictedPa * SignalRestrictedPe;
 						fiber_count++;	
 					}
+					//Final estimation of signal for one voxel//
+					/*fR is re-normalized based on how many of restricted diffusion components are presented*/
+					signal = (fR * SignalRestricted)/fiber_count+ fH*SignalHindered; //temporially get rid of hindered component
+					std::cout<<"restricted diffusion is "<<SignalRestricted<<std::endl;
+					std::cout<<"signal is "<<signal<<std::endl;
 				}
-				//Final estimation of signal for one voxel//
-				/*fR is re-normalized based on how many of restricted diffusion components are presented*/
-				signal = (fR * SignalRestricted)/fiber_count+ fH*SignalHindered; //temporially get rid of hindered component
-				std::cout<<"restricted diffusion is "<<SignalRestricted<<std::endl;
-				std::cout<<"signal is "<<signal<<std::endl;
 			}
 			
 			if (signal != signal){
