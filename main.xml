@@ -31,27 +31,12 @@
 			<description>DWI reconstructed from fiber file </description>
 		</image>
 		<image>
-			<name>EigenFilename</name>
-			<flag>-e</flag>
-			<longflag>EigenFileName</longflag>
-			<label>Input Eigen Values</label>
-			<channel>input</channel>
-			<description>File containing eigenvalues used to estimate diffusion in restricted part, structure of the file:for each voxel three eigenvalues of fibers contained in this voxel</description>
-		</image>
-		<image>
 			<name>foImgFilename</name>
 			<flag>-f</flag>
 			<longflag>fiberorientation</longflag>
 			<label>Input fiber orientations</label>
 			<channel>input</channel>
 			<description>File containing fiber orientations in each voxel, structure of the txt file:for each voxel three coordinates of the vector representing fiber orientations contained in this voxel; exemple : x,y,z of the first fiber in voxel 1 then x, y, z of the second fiber in the same voxel 1 ...</description>
-		</image>
-		<image>
-			<name>EigenHinderedImgFilename</name>
-			<longflag>EigenHinderedFileName</longflag>
-			<label>Input Eigen Values and Eigen Vectors for hindered part</label>
-			<channel>input</channel>
-			<description>File containing eigenvalues and eigenvectors used to estimate diffusion in hindered part, structure of the txt file: an average of tensors in each voxel was done and then for each voxel three eigenvalues of this average contained in this voxel then coordinates of the three eigenvectors of this tensor average</description>
 		</image>	
 		
 	</parameters>
